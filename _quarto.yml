@@ -9,13 +9,15 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
-      - resources.qmd
+      - href: resources.qmd
+        text: Resources
 
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    theme: 
+      light: litera
+      dark: darkly
+    css: styles.css
     css: styles.css
     toc: true
     page-layout: full
