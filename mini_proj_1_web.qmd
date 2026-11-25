@@ -1,0 +1,251 @@
+---
+title: "Taylor Swift's Reputation Album - Text Analysis"
+subtitle: "Avery Shaw"
+format: html
+editor_options: 
+  chunk_output_type: console
+execute:
+  fig-width: 8 
+  fig-height: 5
+---
+
+```{r}
+#| include: FALSE
+#| warning: FALSE
+#| message: FALSE
+
+library(tidyverse)
+library(dplyr)
+library(tidytext)
+library(wordcloud)
+
+ts_data <- read_csv(
+  "C:\\Users\\Avery Shaw\\Downloads\\Corpus-of-Taylor-Swift.csv",
+  col_names = FALSE,
+  show_col_types = FALSE
+)
+  
+ts_data <- ts_data |>
+  rename(
+    id = X2,
+    word = X3
+  ) |>
+  separate_wider_delim(
+    id,
+    delim = ":",
+    names = c("album", "track_number", "line", "verse_chorus")
+  ) |> 
+  mutate(track_number = as.numeric(track_number),
+         line = as.numeric(line)
+         ) |> 
+  separate_longer_delim(
+      word,
+      delim = " ") |> 
+  select(-X1)
+
+song_titles <- tibble(
+  track_number = 1:15,
+  title = c(
+    "...Ready for It?",
+    "End Game",
+    "I Did Something Bad",
+    "Don't Blame Me",
+    "Delicate",
+    "Look What You Made Me Do",
+    "So It Goes...",
+    "Gorgeous",
+    "Getaway Car",
+    "King of My Heart",
+    "Dancing with Our Hands Tied",
+    "Dress",
+    "This Is Why We Can't Have Nice Things",
+    "Call It What You Want",
+    "New Year's Day"
+  )
+)
+
+rep_data <- ts_data |> 
+  filter(album == "REP") |> 
+  left_join(song_titles, by = "track_number")
+
+# Cleaning the word column
+# STR_TO_LOWER lowercase all of the words for consistency
+# STR_REMOVE_ALL removes all special characters with the words like random commas, backslashes, parentheses, question marks, and double quotation marks
+# STR_REPLACE_ALL replaces all of the words with unique contractions with their "un-contracted" words.
+rep_data <- rep_data |> 
+  mutate(word = str_to_lower(word),
+         word = str_remove_all(word, ",|\\(|\\)|\\\\|\\?"),
+         word = str_remove_all(word, '"'),
+         word = str_replace_all(word, "in'$", "ing"),
+         word = str_replace_all(word, "^'em", "them"),
+         word = str_replace_all(word, "'round", "around"),
+         word = str_replace_all(word, "'cause$", "because")
+         )
+
+rep_word <- rep_data |> 
+  select(word)
+
+
+```
+
+## Introduction
+
+For this project, I am using the [Corpus of Taylor Swift Lyrics](https://github.com/sagesolar/Corpus-of-Taylor-Swift), a dataset on GitHub containing lyrics from Taylor Swift’s studio albums and selected non-album songs. The dataset organizes lyrics by album, track, lyric line, and song structure, allowing individual words to be analyzed within their larger context. 
+
+I chose to focus on the lyrics from Taylor Swift’s *Reputation* album. Before the album was released in 2017, Swift faced significant public backlash in 2016 following a controversy with Kanye West over his song “Famous” and a phone conversation recording shared by Kim Kardashian. The controversy led to widespread criticism and the use of snake emojis to portray Swift as dishonest, damaging her public image. After maintaining a relatively approachable public persona, Swift stepped away from the spotlight before reemerging with a darker, more confrontational image. These experiences provide important context for her *Reputation* album, which explores betrayal, revenge, public perception, and finding love amid criticism. Music critics have noted that the album balances references to Swift’s public feuds with romantic and intimate themes (Nevins, 2017). This contrast makes it interesting to investigate how sentiment and language vary across the album.
+
+As a “swiftie” myself, I chose this album because of the contrasting emotional undertones throughout its songs. Tracks such as "Look What You Made Me Do" and "I Did Something Bad" convey revenge and defiance, while songs such as "Gorgeous" and "King of My Heart" explore romantic feelings. The album also features a range of musical styles, from electronic synth-pop to softer, piano-driven ballads. When I think about this album, what comes to my mind is also the black and white color scheme portrayed in the album cover, which I associate with more negative sentiments compared to her previous colorful albums. These contrasts make *Reputation* an interesting subject for text analysis. In this project, I will investigate how language varies across different types of songs, how sentiment changes throughout the album, and which song is the most diverse in vocabulary.
+
+## Most Frequent Words in Reputation, Exlcuding Stop Words
+
+> Out of curiousity, I wanted to see what the most frequent words in *Reputation*, excluding stop words. This can give us a general idea of common themes in the album. 
+
+```{r}
+#| echo: false
+#| message: FALSE 
+#| warning: FALSE
+#| fig-cap: 
+#|   - "Word cloud of the 20 most frequent words in Reputation, excluding common stop words. Words with more appearances are larger in this figure."
+#|   - "Bar chart showing the number of appearances of the 20 most frequent words in Reputation, excluding common stop words"
+
+smart_stopwords <- get_stopwords(source = "smart")
+
+rep_top_words <- rep_word |>
+  anti_join(smart_stopwords, by = "word") |>
+  count(word, sort = TRUE) |>
+  slice_max(n, n = 20)
+
+# 20 most common words in simple word cloud
+wordcloud(
+  words = rep_top_words$word,
+  freq = rep_top_words$n,
+  max.words = 20,
+  random.order = FALSE,
+  colors = "darkgreen",
+  scale = c(2, 0.6),
+  rot.per = 0
+)
+
+# Geom_col plottin Top 20 words in Reputation by number of appearances, excluding stop words
+rep_word |>  
+  anti_join(smart_stopwords, by = "word")|> 
+  count(word, sort = TRUE) |>
+  slice_max(n, n = 20) |>
+  ggplot(aes(fct_reorder(word, n), n)) +
+  geom_col(fill = "darkgreen") +
+  coord_flip() +
+  labs(x = "Word",
+       y = "Number of Appearances", 
+       title = "The 20 Most Frequent in Reputation (Excluding Stop Words)")
+
+```
+
+> From these to figures above, we can see that the top three words are "made", "call", and "yeah". Along with "made" and "call", just from looking at these words I can recognize a handful in the top 20 that are simulataneously words within the track titles. Maybe it is worth looking at words that are not within the track titles or the choruses of the song (where track names typically appear).
+
+## Most Frequent Words in Verses of Reputation, Exlcuding Stop Words
+
+```{r}
+#| echo: false
+#| message: FALSE 
+#| warning: FALSE
+#| fig-cap: "Bar chart showing the number of appearances of the 20 most frequent words in strictly verses of Reputation, excluding common stop words and words from choruses"
+
+rep_data|>  
+  filter(verse_chorus == "V") |> 
+  anti_join(smart_stopwords, by = "word")|> 
+  count(word, sort = TRUE) |>
+  slice_max(n, n = 20, with_ties = FALSE) |>
+  ggplot(aes(fct_reorder(word, n), n)) +
+  geom_col(fill = "mediumpurple") +
+  coord_flip() +
+  labs(x = "Word",
+       y = "Number of Appearances", 
+       title = "The 20 Most Frequent Words in Verses of Reputation (Exlcuding Stop Words")
+```
+
+> We can see that the word "love" has the most appearances when filtering for only words in verses, and not choruses. Athough love appears the most, words like "drama" and "dark" also appear in the top 20. Now that we can see some polarity in the words used in this album, let's see where these words could appear by looking at the sentiment trajectory of this album.
+
+## Sentiment Trajectory (over the course of *Reputation*)
+
+```{r}
+#| echo: false
+#| message: FALSE 
+#| warning: FALSE
+#| fig-cap: "Bar chart shwoing net sentiment (positive sentiment - negative sentiment) values for each song in the Reputation album"
+#| fig-alt: "This is a bar chart showing the the net sentiment of words in each track of Taylor Swift's Reputation album. On the x-axis is is the net sentiment, ranging from -16 to 30. On the y-axis are song titles listed, which are ordered by track number with track 1 '...Ready for It?' being at the bottom of the y-axis and track 15 'New Year's Day' being at the top of the y-axis. Net sentiments above 0 are bars colored in dark green, indicating positive net sentiment values. Net sentiments below 0 are bars colored in purple, indicating negative net sentiment values. The song 'Delicate' has the most positive net sentiment value at 30 and the song 'So it Goes...' has the most negative sentiment value at -16."
+
+bing_sentiments <- get_sentiments(lexicon = "bing")
+
+rep_data |>
+  inner_join(bing_sentiments) |>
+  count(track_number, title, sentiment) |>
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) |>
+  mutate(sentiment = positive - negative) |>
+  ggplot(aes(x = fct_reorder(title, track_number), y = sentiment, fill = sentiment < 0)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(
+    values = c("TRUE" = "mediumpurple", "FALSE" = "darkgreen"),
+    labels = c("TRUE" = "Negative", "FALSE" = "Positive")
+  ) +
+  labs(
+    x = "Song Title",
+    y = "Net Sentiment",
+    title = "Reputation Album Sentiment Trajectory",
+    fill = "Net Sentiment"
+  )
+```
+
+> The sentiment analysis shows that Reputation is not consistently negative, despite its darker public image and themes of revenge and betrayal. “Delicate” has the highest positive net sentiment, while “So It Goes…” has the most negative, suggesting that the album’s emotional tone varies across songs. Several songs also have positive net sentiment, demonstrating that the album balances darker themes with love and vulnerability. However, sentiment alone does not capture the complexity of a song’s lyrics, which leads me to question which song in *Reputation* is the most lyrically diverse.
+
+
+## Which Song in Reputation Has The Most Diversity in Vocabulary?
+
+> To measure diversity in vocabulary, I will create a new variable, called vocabulary diversity, dividing the number of unique words in a song by all of the total words in a song. Songs with a higher proportion of unique words will have higher vocabulary diversity.
+
+> In a tibble, I will also calculate the repetition rate, which is 1 - vocabulary diversity. This tells us the proportion of words that are repeated in each song, with lower proportions representing less repetition.
+
+```{r}
+#| echo: FALSE
+#| message: FALSE 
+#| warning: FALSE
+#| fig-cap: "Bar Chart showing the trajectory of vocabulary diversity using the proportion of unique words in each track, across all 15 tracks."
+rep_data |>
+  group_by(track_number) |>
+  summarize(
+    vocabulary_diversity = n_distinct(word) / n()
+  ) |>
+  ggplot(aes(x = track_number, y = vocabulary_diversity)) +
+  geom_col(fill = "darkgreen") +
+  labs(
+    x = "Track Number",
+    y = "Vocabulary Diversity",
+    title = "Vocabulary Diversity Across Reputation"
+  ) 
+
+
+rep_data |>
+  group_by(track_number, title) |>
+  summarize(
+    total_words = n(),
+    unique_words = n_distinct(word),
+    repetition_rate = 1 - unique_words / total_words
+  ) |> 
+  arrange(repetition_rate)
+```
+
+> It looks like Track 13, "This Is Why We Can't Have Nice Things", has the most diversity in vocabulary out of all the songs with lowest word repetition rate of 0.663.
+
+> We can also see that Track 6, "Look What You Made Me Do", is the least lyrically complex out of all the songs, with the lowest proportion of unique vocabulary and, therefore, highest word repetition rate of 0.804.
+
+> The vocabulary analysis reveals that lyrical diversity varies across *Reputation*. “This Is Why We Can’t Have Nice Things” has the highest vocabulary diversity, while “Look What You Made Me Do” has the lowest and relies more heavily on repeated words. These differences suggest that Swift uses different approaches to songwriting throughout the album, ranging from varied vocabulary to repetition for emphasis and effect. Combined with the sentiment analysis and word frequency results, these findings demonstrate that Reputation contains a mix of emotional themes and lyrical patterns, rather than maintaining one consistent tone or writing style. Although vocabulary diversity provides insight into word choice and repetition, it does not *fully* measure lyrical complexity, which can also involve imagery, figurative language, and storytelling.
+
+## Conclusion
+
+> Taylor Swift’s *Reputation* demonstrates the contrast in emotional themes and songwriting styles that I initially expected to find throughout the album. The word frequency analysis revealed that “love” appears frequently in the verses, suggesting that romantic themes remain important alongside the album’s darker themes. The sentiment analysis further supported this contrast, with “Delicate” having the highest positive net sentiment and “So It Goes…” having the most negative. Finally, the vocabulary analysis showed that lyrical diversity varies across the album, with “This Is Why We Can’t Have Nice Things” having the highest vocabulary diversity and “Look What You Made Me Do” relying more heavily on repetition.
+
+> A limitation of this project are that there were some compound words such as "he-saids" and "she-saids" that Swift uses, which I left within this analysis. Even though the words are compounded, their meaning is different than if they were individual words so I decided to keep them as they were. Another limitation is that some positive and negative words are preceded by negations, which if I were to continue this analysis, I would dive deeper into sentiments taking that into account.  
+
+## References
+
+Nevins, J. (2017, November 10). *Blue-eyed Brits and Kanye digs: Decoding Taylor Swift's Reputation*. The Guardian. https://www.theguardian.com/music/musicblog/2017/nov/10/blue-eyed-brits-and-kanye-digs-decoding-taylor-swifts-reputation 

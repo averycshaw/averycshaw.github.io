@@ -9,8 +9,8 @@ website:
       - href: index.qmd
         text: Home
       - about.qmd
-      - href: resources.qmd
-        text: Resources
+      - href: mini_proj_1_web.qmd
+        text: Mini-Project 1
 
 format:
   html:

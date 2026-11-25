@@ -17,5 +17,5 @@ about:
       href: mailto:averycshaw@gmail.com
 ---
 
-Hi! My name is Avery Shaw (Ayv-ree Shaw). I am currently a junior at St. Olaf College, double-majoring in Statistics & Data Science and Quantitative Economics with a concentration in Business & Management Studies. At St. Olaf, I also play on the St. Olaf Women's Hockey team, am a journal co-editor for Omicron Delta Epsilon, and work as an office assistant in the Economics department! Outside of hockey and school, I enjoy hiking, playing pickle-ball, doing random crafts, and baking!
+Hi! My name is Avery Shaw (Ayv-ree Shaw). I am currently a junior at St. Olaf College, double-majoring in Statistics & Data science and Quantitative Economics with a concentration in Business & Management Studies. At St. Olaf, I also play on the women's hockey team, am a journal co-editor for Omicron Delta Epsilon, and work as an office assistant in the Economics department! Outside of hockey and school, I enjoy hiking, playing pickle-ball, doing random crafts, and baking!
 
